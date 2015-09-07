@@ -118,11 +118,19 @@ class IrqAnalysisCommand(Command):
         # The number of bins for the histogram
         resolution = self._arg_freq_resolution
 
-        min_duration = irq_stats_item.min_duration
-        max_duration = irq_stats_item.max_duration
-        # ns to µs
-        min_duration /= 1000
-        max_duration /= 1000
+        if self._arg_min is not None:
+            min_duration = self._arg_min
+        else:
+            min_duration = irq_stats_item.min_duration
+            # ns to µs
+            min_duration /= 1000
+
+        if self._arg_max is not None:
+            max_duration = self._arg_max
+        else:
+            max_duration = irq_stats_item.max_duration
+            # ns to µs
+            max_duration /= 1000
 
         step = (max_duration - min_duration) / resolution
         if step == 0:
