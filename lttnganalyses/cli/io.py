@@ -50,6 +50,7 @@ class IoAnalysisCommand(Command):
         self._arg_latencytop = self._args.latencytop
         self._arg_freq = self._args.latencyfreq
         self._arg_freq_resolution = self._args.freq_resolution
+        self._arg_percentage = self._args.percentage
 
     def _default_args(self, stats, log, freq, usage, latencytop):
         if stats:
@@ -467,6 +468,7 @@ class IoAnalysisCommand(Command):
 
         buckets = []
         values = []
+        total = 0
         graph = Pyasciigraph()
         for i in range(resolution):
             buckets.append(i * step)
@@ -475,19 +477,27 @@ class IoAnalysisCommand(Command):
             duration /= 1000
             index = min(int((duration - min_duration) / step), resolution - 1)
             values[index] += 1
+            total += 1
 
         graph_data = []
         for index, value in enumerate(values):
+            if self._arg_percentage:
+                out_value = float('%0.03f' % ((value/total)*100))
+                unit = ' %'
+            else:
+                out_value = value
+                unit = ''
             # The graph data format is a tuple (info, value). Here info
             # is the lower bound of the bucket, value the bucket's count
             graph_data.append(('%0.03f' % (index * step + min_duration),
-                               value))
+                               out_value))
 
         graph_lines = graph.graph(
             title,
             graph_data,
             info_before=True,
-            count=True
+            count=True,
+            unit=unit,
         )
 
         for line in graph_lines:
@@ -731,6 +741,8 @@ class IoAnalysisCommand(Command):
                         help='Show the I/O latency top')
         ap.add_argument('--latencyfreq', action='store_true',
                         help='Show the I/O latency frequency distribution')
+        ap.add_argument('--percentage', action='store_true',
+                        help='Output the histograms as percentage')
         ap.add_argument('--freq-resolution', type=int, default=20,
                         help='Frequency distribution resolution '
                              '(default 20)')
