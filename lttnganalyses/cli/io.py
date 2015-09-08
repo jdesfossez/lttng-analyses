@@ -51,6 +51,7 @@ class IoAnalysisCommand(Command):
         self._arg_freq = self._args.latencyfreq
         self._arg_freq_resolution = self._args.freq_resolution
         self._arg_percentage = self._args.percentage
+        self._arg_csv = self._args.csv
 
     def _default_args(self, stats, log, freq, usage, latencytop):
         if stats:
@@ -492,16 +493,23 @@ class IoAnalysisCommand(Command):
             graph_data.append(('%0.03f' % (index * step + min_duration),
                                out_value))
 
-        graph_lines = graph.graph(
-            title,
-            graph_data,
-            info_before=True,
-            count=True,
-            unit=unit,
-        )
-
-        for line in graph_lines:
-            print(line)
+        if self._arg_csv:
+            if self._arg_percentage:
+                print('bucket,percent')
+            else:
+                print('bucket,count')
+            for i in graph_data:
+                print('%s,%s' % (i[0], i[1]))
+        else:
+            graph_lines = graph.graph(
+                title,
+                graph_data,
+                info_before=True,
+                count=True,
+                unit=unit,
+            )
+            for line in graph_lines:
+                print(line)
 
         print()
 
@@ -743,6 +751,8 @@ class IoAnalysisCommand(Command):
                         help='Show the I/O latency frequency distribution')
         ap.add_argument('--percentage', action='store_true',
                         help='Output the histograms as percentage')
+        ap.add_argument('--csv', action='store_true',
+                        help='Output the histogram in CSV')
         ap.add_argument('--freq-resolution', type=int, default=20,
                         help='Frequency distribution resolution '
                              '(default 20)')
