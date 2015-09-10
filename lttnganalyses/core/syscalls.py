@@ -40,7 +40,8 @@ class SyscallsAnalysis(Analysis):
         pass
 
     def reset(self):
-        pass
+        for proc_stats in self.tids.values():
+            proc_stats.syscalls = {}
 
     def _process_syscall_exit(self, **kwargs):
         proc = kwargs['proc']

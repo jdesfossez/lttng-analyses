@@ -29,6 +29,7 @@ from ..linuxautomaton import common
 from ..ascii_graph import Pyasciigraph
 import operator
 import statistics
+import scipy.stats
 
 
 class IoAnalysisCommand(Command):
@@ -43,6 +44,7 @@ class IoAnalysisCommand(Command):
                          enable_max_min_args=True,
                          enable_max_min_size_arg=True,
                          enable_log_arg=True)
+        self.prev_values = None
 
     def _validate_transform_args(self):
         self._arg_usage = self._args.usage
@@ -441,6 +443,34 @@ class IoAnalysisCommand(Command):
         self._output_net_recv_bytes()
         self._output_net_sent_bytes()
 
+    def copy_values(self, values):
+        ret = []
+        for i in values:
+            ret.append(i)
+        return ret
+
+    def compute_chisquare_diff(self, values):
+        if self.prev_values is None:
+            self.prev_values = self.copy_values(values)
+            return
+        diff = []
+        for i in range(len(values)):
+            diff.append(abs((values[i]/100) - (self.prev_values[i]/100)))
+        print(scipy.stats.chisquare(diff))
+        self.prev_values = self.copy_values(values)
+
+    def compute_chisquare(self, values):
+        if self.prev_values is None:
+            self.prev_values = self.copy_values(values)
+            return
+        chi = 0
+        for i in range(len(values)):
+            if self.prev_values[i] > 0:
+                chi += ((values[i] - self.prev_values[i]) ** 2) / \
+                    self.prev_values[i]
+        print(chi)
+        self.prev_values = self.copy_values(values)
+
     # I/O Latency frequency output methods
     def _print_frequency_distribution(self, duration_list, title):
         if not duration_list:
@@ -481,6 +511,7 @@ class IoAnalysisCommand(Command):
             total += 1
 
         graph_data = []
+        only_values = []
         for index, value in enumerate(values):
             if self._arg_percentage:
                 out_value = float('%0.03f' % ((value/total)*100))
@@ -492,6 +523,7 @@ class IoAnalysisCommand(Command):
             # is the lower bound of the bucket, value the bucket's count
             graph_data.append(('%0.03f' % (index * step + min_duration),
                                out_value))
+            only_values.append(out_value)
 
         if self._arg_csv:
             if self._arg_percentage:
@@ -511,6 +543,7 @@ class IoAnalysisCommand(Command):
             for line in graph_lines:
                 print(line)
 
+        self.compute_chisquare(only_values)
         print()
 
     def _output_disk_latency_freq(self):
@@ -732,7 +765,7 @@ class IoAnalysisCommand(Command):
         if self._arg_latencytop:
             self.iolatency_syscalls_top_output()
         if self._arg_freq:
-            self.iolatency_syscalls_output()
+            #self.iolatency_syscalls_output()
             self.iolatency_output()
         if self._arg_log:
             self.iolatency_syscalls_log_output()

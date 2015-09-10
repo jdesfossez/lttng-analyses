@@ -46,14 +46,33 @@ class SyscallsAnalysis(Command):
         self._open_trace()
         self._create_analysis()
         self._run_analysis(self._reset_total, self._refresh)
-        self._print_results(self.start_ns, self.trace_end_ts)
+#        self._print_results(self.start_ns, self.trace_end_ts)
+        self._print_iocounts_procname(self.start_ns, self.trace_end_ts)
         self._close_trace()
 
     def _create_analysis(self):
         self._analysis = syscalls.SyscallsAnalysis(self.state)
 
     def _refresh(self, begin, end):
-        self._print_results(begin, end)
+        #self._print_results(begin, end)
+        self._print_iocounts_procname(self.start_ns, self.trace_end_ts)
+        self._reset_total(end)
+
+    def _print_iocounts_procname(self, begin_ns, end_ns):
+        """Just the number of I/O syscalls per procname"""
+        procnames = {}
+
+        for proc_stats in self._analysis.tids.values():
+            if proc_stats.comm not in procnames:
+                procnames[proc_stats.comm] = 0
+            for syscall in proc_stats.syscalls.values():
+                for syscall_event in syscall.syscalls_list:
+                    if syscall_event.io_rq is None:
+                        continue
+                    procnames[proc_stats.comm] += 1
+
+        for p in procnames.keys():
+            print("%s,%d" % (p, procnames[p]))
 
     def _print_results(self, begin_ns, end_ns):
         line_format = '{:<38} {:>14} {:>14} {:>14} {:>12} {:>10}  {:<14}'
@@ -120,7 +139,7 @@ class SyscallsAnalysis(Command):
         print('\nTotal syscalls: %d' % (self._analysis.total_syscalls))
 
     def _reset_total(self, start_ts):
-        pass
+        self._analysis.reset()
 
     def _add_arguments(self, ap):
         pass

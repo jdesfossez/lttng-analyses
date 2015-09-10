@@ -115,6 +115,9 @@ class BlockStateProvider(sp.StateProvider):
         if req.nr_sector != nr_sector:
             return
 
+        if event.timestamp - req.begin_ts > 15000000000:
+            print(event.timestamp)
+
         req.update_from_rq_complete(event)
         if req.tid in self._state.tids.keys():
             proc = self._state.tids[req.tid]
