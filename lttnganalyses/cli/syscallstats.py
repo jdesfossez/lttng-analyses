@@ -29,6 +29,14 @@ from ..core import syscalls
 import operator
 import statistics
 import errno
+import pandas as pd
+
+
+class ProcStats:
+    def __init__(self, name):
+        self.counts = []
+        self.name = name
+        self.current = 1
 
 
 class SyscallsAnalysis(Command):
@@ -36,6 +44,7 @@ class SyscallsAnalysis(Command):
 
     def __init__(self):
         super().__init__(self._add_arguments, enable_proc_filter_args=True)
+        self.procs = {}
 
     def _validate_transform_args(self):
         pass
@@ -60,19 +69,28 @@ class SyscallsAnalysis(Command):
 
     def _print_iocounts_procname(self, begin_ns, end_ns):
         """Just the number of I/O syscalls per procname"""
-        procnames = {}
 
         for proc_stats in self._analysis.tids.values():
-            if proc_stats.comm not in procnames:
-                procnames[proc_stats.comm] = 0
             for syscall in proc_stats.syscalls.values():
                 for syscall_event in syscall.syscalls_list:
                     if syscall_event.io_rq is None:
                         continue
-                    procnames[proc_stats.comm] += 1
+                    if proc_stats.comm not in self.procs.keys():
+                        s = ProcStats(proc_stats.comm)
+                        self.procs[proc_stats.comm] = s
+                    else:
+                        self.procs[proc_stats.comm].current += 1
 
-        for p in procnames.keys():
-            print("%s,%d" % (p, procnames[p]))
+        for p in self.procs.values():
+            p.counts.append(p.current)
+            ewma = pd.ewma(pd.Series(p.counts), span=3).tolist()[-1]
+            ewmstd = pd.ewmstd(pd.Series(p.counts), span=3).tolist()[-1]
+            flag = ""
+            if abs(p.current - ewma) > 1 * ewmstd:
+                flag = "<- MAJOR CHANGE HERE"
+            print("%s,%d,%d,%d %s" % (p.name, p.current, ewma, ewmstd, flag))
+            p.current = 0
+        print("")
 
     def _print_results(self, begin_ns, end_ns):
         line_format = '{:<38} {:>14} {:>14} {:>14} {:>12} {:>10}  {:<14}'
