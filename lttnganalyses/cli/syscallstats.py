@@ -25,6 +25,7 @@
 
 from .command import Command
 from ..core import syscalls
+from ..linuxautomaton import sv
 
 import operator
 import statistics
@@ -37,6 +38,7 @@ class ProcStats:
         self.counts = []
         self.name = name
         self.current = 1
+        self.rw = 0
 
 
 class SyscallsAnalysis(Command):
@@ -70,16 +72,23 @@ class SyscallsAnalysis(Command):
     def _print_iocounts_procname(self, begin_ns, end_ns):
         """Just the number of I/O syscalls per procname"""
 
+        self._print_date(begin_ns, end_ns)
         for proc_stats in self._analysis.tids.values():
             for syscall in proc_stats.syscalls.values():
                 for syscall_event in syscall.syscalls_list:
                     if syscall_event.io_rq is None:
                         continue
+                    rw = 0
+                    if isinstance(syscall_event.io_rq, sv.ReadWriteIORequest):
+                        if syscall_event.io_rq.returned_size is not None:
+                            rw = syscall_event.io_rq.returned_size
                     if proc_stats.comm not in self.procs.keys():
                         s = ProcStats(proc_stats.comm)
                         self.procs[proc_stats.comm] = s
+                        print("New: %s" % proc_stats.comm)
                     else:
                         self.procs[proc_stats.comm].current += 1
+                    self.procs[proc_stats.comm].rw += rw
 
         for p in self.procs.values():
             p.counts.append(p.current)
@@ -88,8 +97,10 @@ class SyscallsAnalysis(Command):
             flag = ""
             if abs(p.current - ewma) > 1 * ewmstd:
                 flag = "<- MAJOR CHANGE HERE"
-            print("%s,%d,%d,%d %s" % (p.name, p.current, ewma, ewmstd, flag))
+            print("%s,%d,%d,%d,%d %s" % (p.name, p.current, ewma, ewmstd, p.rw,
+                                         flag))
             p.current = 0
+            p.rw = 0
         print("")
 
     def _print_results(self, begin_ns, end_ns):
