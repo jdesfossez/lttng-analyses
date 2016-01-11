@@ -63,9 +63,10 @@ class TestTrace():
 
         self.array_type = CTFWriter.ArrayFieldDeclaration(self.char8_type, 16)
 
+        self.string_type = CTFWriter.StringFieldDeclaration()
+
     def define_sched_switch(self):
         self.sched_switch = CTFWriter.EventClass("sched_switch")
-
         self.sched_switch.add_field(self.array_type, "_prev_comm")
         self.sched_switch.add_field(self.int32_type, "_prev_tid")
         self.sched_switch.add_field(self.int32_type, "_prev_prio")
@@ -74,11 +75,47 @@ class TestTrace():
         self.sched_switch.add_field(self.int32_type, "_next_tid")
         self.sched_switch.add_field(self.int32_type, "_next_prio")
         self.sched_switch.add_field(self.uint32_type, "_cpu_id")
-
         self.stream_class.add_event_class(self.sched_switch)
+
+    def define_softirq_raise(self):
+        self.softirq_raise = CTFWriter.EventClass("softirq_raise")
+        self.softirq_raise.add_field(self.uint32_type, "_vec")
+        self.softirq_raise.add_field(self.uint32_type, "_cpu_id")
+        self.stream_class.add_event_class(self.softirq_raise)
+
+    def define_softirq_entry(self):
+        self.softirq_entry = CTFWriter.EventClass("softirq_entry")
+        self.softirq_entry.add_field(self.uint32_type, "_vec")
+        self.softirq_entry.add_field(self.uint32_type, "_cpu_id")
+        self.stream_class.add_event_class(self.softirq_entry)
+
+    def define_softirq_exit(self):
+        self.softirq_exit = CTFWriter.EventClass("softirq_exit")
+        self.softirq_exit.add_field(self.uint32_type, "_vec")
+        self.softirq_exit.add_field(self.uint32_type, "_cpu_id")
+        self.stream_class.add_event_class(self.softirq_exit)
+
+    def define_irq_handler_entry(self):
+        self.irq_handler_entry = CTFWriter.EventClass("irq_handler_entry")
+        self.irq_handler_entry.add_field(self.int32_type, "_irq")
+        self.irq_handler_entry.add_field(self.string_type, "_name")
+        self.irq_handler_entry.add_field(self.uint32_type, "_cpu_id")
+        self.stream_class.add_event_class(self.irq_handler_entry)
+
+    def define_irq_handler_exit(self):
+        self.irq_handler_exit = CTFWriter.EventClass("irq_handler_exit")
+        self.irq_handler_exit.add_field(self.int32_type, "_irq")
+        self.irq_handler_exit.add_field(self.int32_type, "_ret")
+        self.irq_handler_exit.add_field(self.uint32_type, "_cpu_id")
+        self.stream_class.add_event_class(self.irq_handler_exit)
 
     def define_events(self):
         self.define_sched_switch()
+        self.define_softirq_raise()
+        self.define_softirq_entry()
+        self.define_softirq_exit()
+        self.define_irq_handler_entry()
+        self.define_irq_handler_exit()
 
     def create_stream(self):
         self.stream = self.writer.create_stream(self.stream_class)
@@ -95,6 +132,51 @@ class TestTrace():
 
     def set_int(self, event, value):
         event.value = value
+
+    def set_string(self, event, value):
+        event.value = value
+
+    def write_softirq_raise(self, time_ms, cpu_id, vec):
+        event = CTFWriter.Event(self.softirq_raise)
+        self.clock.time = time_ms * 1000000
+        self.set_int(event.payload("_cpu_id"), cpu_id)
+        self.set_int(event.payload("_vec"), vec)
+        self.stream.append_event(event)
+        self.stream.flush()
+
+    def write_softirq_entry(self, time_ms, cpu_id, vec):
+        event = CTFWriter.Event(self.softirq_entry)
+        self.clock.time = time_ms * 1000000
+        self.set_int(event.payload("_cpu_id"), cpu_id)
+        self.set_int(event.payload("_vec"), vec)
+        self.stream.append_event(event)
+        self.stream.flush()
+
+    def write_softirq_exit(self, time_ms, cpu_id, vec):
+        event = CTFWriter.Event(self.softirq_exit)
+        self.clock.time = time_ms * 1000000
+        self.set_int(event.payload("_cpu_id"), cpu_id)
+        self.set_int(event.payload("_vec"), vec)
+        self.stream.append_event(event)
+        self.stream.flush()
+
+    def write_irq_handler_entry(self, time_ms, cpu_id, irq, name):
+        event = CTFWriter.Event(self.irq_handler_entry)
+        self.clock.time = time_ms * 1000000
+        self.set_int(event.payload("_cpu_id"), cpu_id)
+        self.set_int(event.payload("_irq"), irq)
+        self.set_string(event.payload("_name"), name)
+        self.stream.append_event(event)
+        self.stream.flush()
+
+    def write_irq_handler_exit(self, time_ms, cpu_id, irq, ret):
+        event = CTFWriter.Event(self.irq_handler_exit)
+        self.clock.time = time_ms * 1000000
+        self.set_int(event.payload("_cpu_id"), cpu_id)
+        self.set_int(event.payload("_irq"), irq)
+        self.set_int(event.payload("_ret"), ret)
+        self.stream.append_event(event)
+        self.stream.flush()
 
     def write_sched_switch(self, time_ms, cpu_id, prev_comm, prev_tid,
                            next_comm, next_tid, prev_prio=20, prev_state=1,
@@ -123,11 +205,11 @@ class TestTrace():
 
     def compare_output(self, expected, result, complete_output=False):
         diff = difflib.ndiff(expected.split('\n'), result.split('\n'))
-        err = False
+        ok = True
         for l in diff:
             if l[0] != ' ':
-                err = True
+                ok = False
             if l[0] == ' ' and not complete_output:
                 continue
             print(l)
-        return err
+        return ok

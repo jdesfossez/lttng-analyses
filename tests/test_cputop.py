@@ -2,6 +2,7 @@
 
 from TestTrace import TestTrace
 import subprocess
+import sys
 
 t = TestTrace()
 
@@ -35,7 +36,9 @@ t.flush()
 
 result = subprocess.getoutput('./lttng-cputop --no-progress --skip-validation "%s"' % t.get_trace_root())
 
-err = t.compare_output(expected, result)
-print(err)
-
+ok = t.compare_output(expected, result)
 t.delete_trace()
+
+if not ok:
+    sys.exit(1)
+sys.exit(0)
