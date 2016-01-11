@@ -101,7 +101,7 @@ class IrqStateProvider(sp.StateProvider):
         cpu = self._get_cpu(event['cpu_id'])
         vec = event['vec']
 
-        if not cpu.current_softirqs[vec]:
+        if vec not in cpu.current_softirqs:
             return
 
         cpu.current_softirqs[vec][0].end_ts = event.timestamp
