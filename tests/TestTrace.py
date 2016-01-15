@@ -5,11 +5,13 @@ import os
 import shutil
 import tempfile
 import difflib
+import subprocess
 from babeltrace import CTFWriter, CTFStringEncoding
 
 
 class TestTrace():
-    def __init__(self):
+    def __init__(self, delete_trace=True):
+        self.delete_trace = delete_trace
         self.trace_root = tempfile.mkdtemp()
         self.trace_path = os.path.join(self.trace_root, "kernel")
         self.create_writer()
@@ -18,10 +20,14 @@ class TestTrace():
         self.define_events()
         self.create_stream()
 
+    def __del__(self):
+        if self.delete_trace:
+            self.rm_trace()
+
     def get_trace_root(self):
         return self.trace_root
 
-    def delete_trace(self):
+    def rm_trace(self):
         shutil.rmtree(self.trace_root)
 
     def flush(self):
@@ -203,13 +209,40 @@ class TestTrace():
             self.write_sched_switch(current, cpu_id, comm2, tid2, comm1, tid1)
             current += period
 
-    def compare_output(self, expected, result, complete_output=False):
+    def compare_output(self, cmd, expected):
+        result = subprocess.getoutput(cmd)
         diff = difflib.ndiff(expected.split('\n'), result.split('\n'))
+        txt = ""
         ok = True
         for l in diff:
             if l[0] != ' ':
                 ok = False
-            if l[0] == ' ' and not complete_output:
-                continue
-            print(l)
+            txt = txt + (l) + '\n'
+        if not ok:
+            print(txt)
+        return ok
+
+
+class AnalyzesTest():
+    def __init__(self, delete_trace=True, verbose=False):
+        self.verbose = verbose
+        self.t = TestTrace(delete_trace=delete_trace)
+        self.common_options = '--no-progress --skip-validation'
+        self.cmd_root = './'
+
+    def log(self, msg):
+        if self.verbose:
+            print(msg)
+
+    def compare_output(self, cmd, expected):
+        return self.t.compare_output(cmd, expected)
+
+    def run(self):
+        ok = True
+        self.write_trace()
+        for t in self.test_list:
+            ret = t[1]()
+            self.log('%s: %s' % (t[0], ret))
+            if not ret:
+                ok = False
         return ok
