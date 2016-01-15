@@ -1,24 +1,14 @@
 #!/usr/bin/env python3
 
-from TestTrace import TestTrace
-import subprocess
+from TestTrace import TestTrace, AnalyzesTest
 import sys
 
 
-class AnalyzesTest():
-    def __init__(self, complete_output=False, delete_trace=True):
-        self.t = TestTrace(delete_trace=delete_trace,
-                           complete_output=complete_output)
-        self.common_options = '--no-progress --skip-validation'
-        self.path = './'
-
-    def run(self):
-        ok = True
-        self.write_trace()
-        ret = self.run_no_option()
-        if not ret:
-            ok = False
-        return ok
+class Test(AnalyzesTest):
+    def __init__(self, delete_trace=True, verbose=False):
+        super().__init__(delete_trace=delete_trace,
+                         verbose=verbose)
+        self.test_list = [('cputop', self.run_no_option)]
 
     def write_trace(self):
         # runs the whole time: 100%
@@ -48,14 +38,13 @@ Per-CPU Usage
 
 Total CPU Usage: 48.33%
 """
-        result = subprocess.getoutput('%slttng-cputop %s "%s"' % (
-            self.path, self.common_options, self.t.get_trace_root()))
 
-        return self.t.compare_output(expected, result)
+        return self.compare_output('%slttng-cputop %s "%s"' % (
+                       self.cmd_root, self.common_options, self.t.get_trace_root()),
+                       expected)
 
 
-t = AnalyzesTest()
+t = Test(verbose=True)
 ok = t.run()
 if not ok:
     sys.exit(1)
-#sys.exit(0)
