@@ -173,6 +173,14 @@ class Command:
             self._traces.remove_trace(handle)
 
     def _read_tracer_version(self):
+        if self._args.override_version:
+            version = self._args.override_version.split('.')
+            try:
+                self.state.tracer_version = version_utils.Version(
+                    int(version[0]), int(version[1]), int(version[2]))
+            except IndexError:
+                self._error('Malformed version string (e.g: 2.8.0)')
+            return
         kernel_path = None
         for root, _, _ in os.walk(self._args.path):
             if root.endswith('kernel'):
@@ -360,6 +368,8 @@ class Command:
                              'of local time')
         ap.add_argument('--skip-validation', action='store_true',
                         help='Skip the trace validation')
+        ap.add_argument('--override-version', type=str,
+                        help='Override the tracer version (e.g.: 2.8.0)')
         ap.add_argument('--begin', type=str, help='start time: '
                                                   'hh:mm:ss[.nnnnnnnnn]')
         ap.add_argument('--end', type=str, help='end time: '
