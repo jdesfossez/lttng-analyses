@@ -71,7 +71,8 @@ class TraceTest():
         self.uint64_type.signed = False
         self.uint64_type.alignment = 8
 
-        self.array16_type = CTFWriter.ArrayFieldDeclaration(self.char8_type, 16)
+        self.array16_type = CTFWriter.ArrayFieldDeclaration(self.char8_type,
+                                                            16)
 
         self.string_type = CTFWriter.StringFieldDeclaration()
 
@@ -142,28 +143,37 @@ class TraceTest():
         self.add_event(self.syscall_exit_read)
 
     def define_lttng_statedump_process_state(self):
-        self.lttng_statedump_process_state = CTFWriter.EventClass("lttng_statedump_process_state")
+        self.lttng_statedump_process_state = CTFWriter.EventClass(
+            "lttng_statedump_process_state")
         self.lttng_statedump_process_state.add_field(self.int32_type, "_tid")
         self.lttng_statedump_process_state.add_field(self.int32_type, "_vtid")
         self.lttng_statedump_process_state.add_field(self.int32_type, "_pid")
         self.lttng_statedump_process_state.add_field(self.int32_type, "_vpid")
         self.lttng_statedump_process_state.add_field(self.int32_type, "_ppid")
         self.lttng_statedump_process_state.add_field(self.int32_type, "_vppid")
-        self.lttng_statedump_process_state.add_field(self.array16_type, "_name")
+        self.lttng_statedump_process_state.add_field(self.array16_type,
+                                                     "_name")
         self.lttng_statedump_process_state.add_field(self.int32_type, "_type")
         self.lttng_statedump_process_state.add_field(self.int32_type, "_mode")
-        self.lttng_statedump_process_state.add_field(self.int32_type, "_submode")
-        self.lttng_statedump_process_state.add_field(self.int32_type, "_status")
-        self.lttng_statedump_process_state.add_field(self.int32_type, "_ns_level")
+        self.lttng_statedump_process_state.add_field(self.int32_type,
+                                                     "_submode")
+        self.lttng_statedump_process_state.add_field(self.int32_type,
+                                                     "_status")
+        self.lttng_statedump_process_state.add_field(self.int32_type,
+                                                     "_ns_level")
         self.add_event(self.lttng_statedump_process_state)
 
     def define_lttng_statedump_file_descriptor(self):
-        self.lttng_statedump_file_descriptor = CTFWriter.EventClass("lttng_statedump_file_descriptor")
+        self.lttng_statedump_file_descriptor = CTFWriter.EventClass(
+            "lttng_statedump_file_descriptor")
         self.lttng_statedump_file_descriptor.add_field(self.int32_type, "_pid")
         self.lttng_statedump_file_descriptor.add_field(self.int32_type, "_fd")
-        self.lttng_statedump_file_descriptor.add_field(self.uint32_type, "_flags")
-        self.lttng_statedump_file_descriptor.add_field(self.uint32_type, "_fmode")
-        self.lttng_statedump_file_descriptor.add_field(self.string_type, "_filename")
+        self.lttng_statedump_file_descriptor.add_field(self.uint32_type,
+                                                       "_flags")
+        self.lttng_statedump_file_descriptor.add_field(self.uint32_type,
+                                                       "_fmode")
+        self.lttng_statedump_file_descriptor.add_field(self.string_type,
+                                                       "_filename")
         self.add_event(self.lttng_statedump_file_descriptor)
 
     def define_sched_wakeup(self):
@@ -487,7 +497,8 @@ class AnalyzesTest():
     def __init__(self, delete_trace=True, verbose=False):
         self.verbose = verbose
         self.t = TraceTest(delete_trace=delete_trace)
-        self.common_options = '--no-progress --skip-validation'
+        self.common_options = '--no-progress --skip-validation \
+            --override-version 2.8.0'
         self.cmd_root = './'
         self.log('Trace in %s' % (self.t.get_trace_root()))
 
