@@ -284,18 +284,18 @@ class Command:
         self._analysis_conf.period_begin_ev_name = args.period_begin
         self._analysis_conf.period_end_ev_name = args.period_end
         self._analysis_conf.period_begin_key_fields = \
-                                            args.period_begin_key.split(',')
+            args.period_begin_key.split(',')
 
         if args.period_end_key:
             self._analysis_conf.period_end_key_fields = \
-                                            args.period_end_key.split(',')
+                args.period_end_key.split(',')
         else:
             self._analysis_conf.period_end_key_fields = \
-                                    self._analysis_conf.period_begin_key_fields
+                self._analysis_conf.period_begin_key_fields
 
         if args.period_key_value:
             self._analysis_conf.period_key_value = \
-                                        tuple(args.period_key_value.split(','))
+                tuple(args.period_key_value.split(','))
 
         if args.cpu:
             self._analysis_conf.cpu_list = args.cpu.split(',')
