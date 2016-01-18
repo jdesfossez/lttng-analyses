@@ -164,7 +164,7 @@ class Command:
         self._handles = handles
         self._traces = traces
         self._process_date_args()
-#        self._read_tracer_version()
+        self._read_tracer_version()
         if not self._args.skip_validation:
             self._check_lost_events()
 
