@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-from TestTrace import TestTrace, AnalyzesTest
+from TraceTest import AnalyzesTest
 import sys
 
 
-class Test(AnalyzesTest):
+class CpuTest(AnalyzesTest):
     def __init__(self, delete_trace=True, verbose=False):
         super().__init__(delete_trace=delete_trace,
                          verbose=verbose)
@@ -44,7 +44,7 @@ Total CPU Usage: 48.33%
                        expected)
 
 
-t = Test(verbose=True)
-ok = t.run()
-if not ok:
-    sys.exit(1)
+def test_answer():
+    t = CpuTest(verbose=True)
+    ok = t.run()
+    assert(ok)
