@@ -454,7 +454,7 @@ class SyscallConsts():
     DISK_OPEN_SYSCALLS = ['open', 'openat']
     # list of syscalls that open a FD on the network
     # (in the exit_syscall event)
-    NET_OPEN_SYSCALLS = ['accept', 'accept4', 'socket']
+    NET_OPEN_SYSCALLS = ['socket']
     # list of syscalls that can duplicate a FD
     DUP_OPEN_SYSCALLS = ['fcntl', 'dup', 'dup2', 'dup3']
     SYNC_SYSCALLS = ['sync', 'sync_file_range', 'fsync', 'fdatasync']
