@@ -117,6 +117,8 @@ def gen_parser(handle, fd, args):
                         fname = "_in"
                     if fname == "event":
                         fname = "_event"
+                    if fname == "from":
+                        fname = "_from"
                     fd.write("        %s = event[\"%s\"]\n" % (fname,
                              field.name))
                     fmt_str = fmt_str + field.name + " = %s, "
