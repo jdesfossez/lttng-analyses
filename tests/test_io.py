@@ -9,13 +9,14 @@ class IoTest(AnalyzesTest):
         super().__init__(delete_trace=delete_trace,
                          verbose=verbose)
         self.test_list = [('iousagetop', self.run_iousagetop),
-                ('iolatencytop', self.run_iolatencytop)]
+                          ('iolatencytop', self.run_iolatencytop)]
 
     def write_trace(self):
         # app (99) is known at statedump
         self.t.write_lttng_statedump_process_state(1000, 0, 99, 99, 99, 99, 98,
                                                    98, "app", 0, 5, 0, 5, 0)
-        # app2 (100) unknown at statedump has testfile, FD 3 defined at statedump
+        # app2 (100) unknown at statedump has testfile, FD 3 defined at
+        # statedump
         self.t.write_lttng_statedump_file_descriptor(1001, 0, 100, 3, 0, 0,
                                                      "testfile")
         # app write 10 bytes to FD 4
@@ -41,6 +42,8 @@ class IoTest(AnalyzesTest):
         # net receive
         self.t.write_netif_receive_skb(1021, 1, 0xff, 100, "wlan1")
         self.t.write_netif_receive_skb(1022, 1, 0xff, 200, "wlan0")
+        # syscall open
+        self.t.write_syscall_open(1023, 0, 1, "test/open/file", 0, 0, 42)
         self.t.flush()
 
     def run_iousagetop(self):
@@ -109,8 +112,8 @@ Begin               End                  Name             Duration (usec)       
 [19:00:01.004000000,19:00:01.005000000]  write                   1000.000      10.00 B  app                      99       unknown (fd=4)"""
 
         return self.compare_output('%slttng-iolatencytop %s "%s"' % (
-                       self.cmd_root, self.common_options, self.t.get_trace_root()),
-                       expected)
+            self.cmd_root, self.common_options,
+            self.t.get_trace_root()), expected)
 
 
 def test_answer():

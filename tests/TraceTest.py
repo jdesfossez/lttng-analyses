@@ -55,6 +55,14 @@ class TraceTest():
         self.char8_type.encoding = CTFStringEncoding.UTF8
         self.char8_type.alignment = 8
 
+        self.int16_type = CTFWriter.IntegerFieldDeclaration(16)
+        self.int16_type.signed = True
+        self.int16_type.alignment = 8
+
+        self.uint16_type = CTFWriter.IntegerFieldDeclaration(16)
+        self.uint16_type.signed = False
+        self.uint16_type.alignment = 8
+
         self.int32_type = CTFWriter.IntegerFieldDeclaration(32)
         self.int32_type.signed = True
         self.int32_type.alignment = 8
@@ -141,6 +149,18 @@ class TraceTest():
         self.syscall_exit_read.add_field(self.uint64_type, "_buf")
         self.syscall_exit_read.add_field(self.int64_type, "_ret")
         self.add_event(self.syscall_exit_read)
+
+    def define_syscall_entry_open(self):
+        self.syscall_entry_open = CTFWriter.EventClass("syscall_entry_open")
+        self.syscall_entry_open.add_field(self.string_type, "_filename")
+        self.syscall_entry_open.add_field(self.int32_type, "_flags")
+        self.syscall_entry_open.add_field(self.uint16_type, "_mode")
+        self.add_event(self.syscall_entry_open)
+
+    def define_syscall_exit_open(self):
+        self.syscall_exit_open = CTFWriter.EventClass("syscall_exit_open")
+        self.syscall_exit_open.add_field(self.int64_type, "_ret")
+        self.add_event(self.syscall_exit_open)
 
     def define_lttng_statedump_process_state(self):
         self.lttng_statedump_process_state = CTFWriter.EventClass(
@@ -243,6 +263,8 @@ class TraceTest():
         self.define_syscall_exit_write()
         self.define_syscall_entry_read()
         self.define_syscall_exit_read()
+        self.define_syscall_entry_open()
+        self.define_syscall_exit_open()
         self.define_lttng_statedump_process_state()
         self.define_lttng_statedump_file_descriptor()
         self.define_sched_wakeup()
@@ -343,6 +365,24 @@ class TraceTest():
         self.set_int(exit.payload("_buf"), buf)
         self.set_int(exit.payload("_ret"), ret)
         self.stream.append_event(exit)
+        self.stream.flush()
+
+    def write_syscall_open(self, time_ms, cpu_id, delay, filename, flags,
+                           mode, ret):
+        event = CTFWriter.Event(self.syscall_entry_open)
+        self.clock.time = time_ms * 1000000
+        self.set_int(event.payload("_cpu_id"), cpu_id)
+        self.set_string(event.payload("_filename"), filename)
+        self.set_int(event.payload("_flags"), flags)
+        self.set_int(event.payload("_mode"), mode)
+        self.stream.append_event(event)
+        self.stream.flush()
+
+        event = CTFWriter.Event(self.syscall_exit_open)
+        self.clock.time = (time_ms + delay) * 1000000
+        self.set_int(event.payload("_cpu_id"), cpu_id)
+        self.set_int(event.payload("_ret"), ret)
+        self.stream.append_event(event)
         self.stream.flush()
 
     def write_lttng_statedump_file_descriptor(self, time_ms, cpu_id, pid, fd,
