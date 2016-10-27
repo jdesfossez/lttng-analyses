@@ -501,20 +501,18 @@ class PeriodAnalysisCommand(Command):
                                              full_captures)
 
     def _hierarchical_sub(self, tmp_hierarchical_list, event, per_period_stats,
-                          parent_captures,
-                          per_period_group_by_stats, active_periods):
+                          parent_captures, per_period_group_by_stats,
+                          active_periods):
         tmp_hierarchical_list.append(event)
 
-#        self._check_period_by_group(
-#            event,
-#            self._get_group_by_dict(per_period_group_by_stats,
-#                                    parent_captures))
-#        child_captures = self._append_captures(event, parent_captures)
-#        self._account_event_in_group(per_period_group_by_stats,
-#                                     child_captures, event)
-        child_captures = None
+        self._check_period_by_group(
+            event,
+            self._get_group_by_dict(per_period_group_by_stats,
+                                    parent_captures))
+#            per_period_group_by_stats)
+        child_captures = self._append_captures(event, parent_captures)
 
-        # Recursively iterate over all the children of this period
+        # Recursively iterate over all the children of this period.
         for child in event.children:
             if child.name not in per_period_stats.keys():
                 per_period_stats[child.name] = _AggregatedPeriodStats(
@@ -528,19 +526,30 @@ class PeriodAnalysisCommand(Command):
                                    active_periods)
             del(active_periods[child])
 
+        # Period is finished, account all we accumulated in the global
+        # stats.
         per_period_stats[event.name].finish_period(
             event.start_ts, event.end_ts,
             active_periods[event].children)
 
+        self._account_event_in_group(
+            per_period_group_by_stats,
+            child_captures, event, active_periods)
+
     def _account_event_in_group(self, per_period_group_by_stats, captures,
-                                event):
+                                event, active_periods):
         # Check if the event name exists at all level of the group
         # chain and create it if necessary.
         d = per_period_group_by_stats
         for c in captures:
             group = d[c]
-            if event.name not in group['data'].keys():
-                group['data'][event.name] = _PeriodStats()
+            if event.name not in group['per_period_stats'].keys():
+                group['per_period_stats'][event.name] = _AggregatedPeriodStats(
+                    self._analysis_conf.period_def_registry,
+                    event.name)
+            group['per_period_stats'][event.name].finish_period(
+                event.start_ts, event.end_ts,
+                active_periods[event].children)
             d = group
 
     def _check_period_by_group(self, event, group_by_stats):
@@ -551,7 +560,7 @@ class PeriodAnalysisCommand(Command):
             group_key = '%s = %s' % (c[0], c[1])
             if group_key not in grp_dict.keys():
                 grp_dict[group_key] = {}
-                grp_dict[group_key]['data'] = {}
+                grp_dict[group_key]['per_period_stats'] = OrderedDict()
             grp_dict = grp_dict[group_key]
 
     def _get_group_by_dict(self, per_period_group_by_stats, captures):
@@ -570,20 +579,22 @@ class PeriodAnalysisCommand(Command):
             tmp_cap.append(group_key)
         return tmp_cap
 
-    def _print_dict(self, per_period_group_by_stats, d=None, level=0):
+    def _print_dict(self, d, level=0):
         # Debug function
-        if d is None:
-            d = per_period_group_by_stats
         for i in d.keys():
-            spaces = ''
-            for j in range(level):
-                spaces = '%s%s ' % (spaces, '')
-            if i == 'data':
+            spaces = ' ' * (level)
+            if i == 'per_period_stats':
+                sp1 = ' %s' % spaces
+                print('%skeys:' % sp1)
                 for k in d[i].keys():
-                    print('%s- %s' % (spaces, k))
+                    print('%s  %s' % (spaces, k))
+                    sp2 = ' %s' % sp1
+                    for l in d[i][k]._children.keys():
+                        print('%s %s = %s' % (
+                            sp2, l, d[i][k]._children[l].count_array))
                 continue
             print('%s- %s' % (spaces, i))
-            self._print_dict(None, d[i], level + 1)
+            self._print_dict(d[i], level + 1)
 
     def _get_aggregated_lists(self):
         # Dict with parent period as key. Each entry contains a dict
@@ -606,16 +617,12 @@ class PeriodAnalysisCommand(Command):
                 if period_event.parent is None:
                     active_periods[period_event] = _TmpAggregation()
                     hierarchical_list.append(period_event)
-                    parent_captures = self._append_captures(period_event)
-                    self._check_period_by_group(
-                        period_event, per_period_group_by_stats)
+                    parent_captures = []
                     if period_event.name not in per_period_stats.keys():
                         per_period_stats[period_event.name] = \
                             _AggregatedPeriodStats(
                                 self._analysis_conf.period_def_registry,
                                 period_event.name)
-                    self._check_period_by_group(period_event,
-                                                per_period_group_by_stats)
 
                     tmp_hierarchical_list = []
                     self._hierarchical_sub(
