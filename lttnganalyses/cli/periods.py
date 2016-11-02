@@ -59,6 +59,7 @@ class _TmpAggregation():
         # self._children[name] = [durations]
         self._children = {}
         self._parent = parent
+        self.current_captures = None
 
     @property
     def children(self):
@@ -495,10 +496,8 @@ class PeriodAnalysisCommand(Command):
         for capture in event.full_captures():
             full_captures.append(capture)
         for child in event.children:
-            self._find_aggregated_subperiods(root, child,
-                                             aggregated_list,
-                                             group_by_captures,
-                                             full_captures)
+            self._find_aggregated_subperiods(root, child, aggregated_list,
+                                             group_by_captures, full_captures)
 
     def _hierarchical_sub(self, tmp_hierarchical_list, event, per_period_stats,
                           parent_captures, per_period_group_by_stats,
@@ -509,8 +508,8 @@ class PeriodAnalysisCommand(Command):
             event,
             self._get_group_by_dict(per_period_group_by_stats,
                                     parent_captures))
-#            per_period_group_by_stats)
         child_captures = self._append_captures(event, parent_captures)
+        active_periods[event].current_captures = child_captures
 
         # Recursively iterate over all the children of this period.
         for child in event.children:
@@ -520,10 +519,10 @@ class PeriodAnalysisCommand(Command):
                     child.name)
             active_periods[event].add_child(child.name, child.duration)
             active_periods[child] = _TmpAggregation(active_periods[event])
-            self._hierarchical_sub(tmp_hierarchical_list, child,
-                                   per_period_stats, child_captures,
-                                   per_period_group_by_stats,
-                                   active_periods)
+            self._hierarchical_sub(
+                tmp_hierarchical_list, child, per_period_stats,
+                child_captures, per_period_group_by_stats,
+                active_periods)
             del(active_periods[child])
 
         # Period is finished, account all we accumulated in the global
@@ -535,6 +534,23 @@ class PeriodAnalysisCommand(Command):
         self._account_event_in_group(
             per_period_group_by_stats,
             child_captures, event, active_periods)
+
+        # Return the new captures we discovered
+        new_captures_list = []
+        for c in child_captures:
+            if c not in parent_captures:
+                new_captures_list.append(c)
+        parent = event.parent
+        print(child_captures)
+        if len(new_captures_list) > 0:
+            while parent is not None:
+                for c in new_captures_list:
+                    print("Accounting %s in %s" % (parent.name, c))
+                    self._account_event_in_group(
+                        per_period_group_by_stats,
+                        active_periods[event.parent].current_captures + [c],
+                        parent, active_periods)
+                parent = parent.parent
 
     def _account_event_in_group(self, per_period_group_by_stats, captures,
                                 event, active_periods):
@@ -552,16 +568,28 @@ class PeriodAnalysisCommand(Command):
                 active_periods[event].children)
             d = group
 
-    def _check_period_by_group(self, event, group_by_stats):
+    def _check_period_by_group(self, event, group_by_stats,
+                               extra_captures=None):
         # group_by_stats[capture1]...[capture-n][parent][child] = \
         #    _PeriodStats()
         grp_dict = group_by_stats
-        for c in event.filtered_captures(self._analysis_conf._group_by):
+        captures = event.filtered_captures(self._analysis_conf._group_by)
+        for c in captures:
             group_key = '%s = %s' % (c[0], c[1])
             if group_key not in grp_dict.keys():
+                print("adding", group_key)
                 grp_dict[group_key] = {}
                 grp_dict[group_key]['per_period_stats'] = OrderedDict()
             grp_dict = grp_dict[group_key]
+
+        if extra_captures is not None:
+            for level in extra_captures:
+                for group_key in level:
+                    if group_key not in grp_dict.keys():
+                        print("adding", group_key)
+                        grp_dict[group_key] = {}
+                        grp_dict[group_key]['per_period_stats'] = OrderedDict()
+                grp_dict = grp_dict[group_key]
 
     def _get_group_by_dict(self, per_period_group_by_stats, captures):
         d = per_period_group_by_stats
@@ -617,7 +645,9 @@ class PeriodAnalysisCommand(Command):
                 if period_event.parent is None:
                     active_periods[period_event] = _TmpAggregation()
                     hierarchical_list.append(period_event)
-                    parent_captures = []
+                    parent_captures = self._append_captures(period_event)
+                    active_periods[period_event].current_captures = \
+                        parent_captures
                     if period_event.name not in per_period_stats.keys():
                         per_period_stats[period_event.name] = \
                             _AggregatedPeriodStats(
@@ -625,11 +655,21 @@ class PeriodAnalysisCommand(Command):
                                 period_event.name)
 
                     tmp_hierarchical_list = []
+                    self._check_period_by_group(
+                        period_event, per_period_group_by_stats)
                     self._hierarchical_sub(
                         tmp_hierarchical_list, period_event, per_period_stats,
                         parent_captures,
                         per_period_group_by_stats,
                         active_periods)
+#                    self._check_period_by_group(
+#                            period_event,
+#                            per_period_group_by_stats,
+#                            sub_level_captures)
+#                    self._account_event_in_group(
+#                        per_period_group_by_stats,
+#                        parent_captures + sub_level_captures,
+#                        period_event, active_periods)
                     del(active_periods[period_event])
                     for item in tmp_hierarchical_list:
                         hierarchical_list.append(item)
